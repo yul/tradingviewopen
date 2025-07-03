@@ -1,0 +1,57 @@
+// MIT License
+// (c) Yuri Lopukhov
+//@version=5
+indicator("Daily Seasonality [YuL]", overlay=true, max_bars_back = 5000, max_lines_count = 500, format = format.percent)
+
+lookbackYears = input.int(5, title="Lookback Years", minval=1)
+ema_period = input.int(30, "EMA Period", minval=1)
+// cumulative = input.bool(false, "Accumulate?")
+
+valid_timeframe = timeframe.isdaily
+
+var max_trading_days = 0
+
+var int tradingDayOfYear = 0
+if bar_index == 0 or year != year[1]
+    tradingDayOfYear := 1
+else
+    tradingDayOfYear += 1
+
+max_trading_days := math.max(max_trading_days, tradingDayOfYear)
+
+returns_array = array.new_float(366, 0)
+
+change_pct = close/close[1] - 1
+i = 1, years = 0
+var insufficient_data = true
+avg_return = 0.
+if valid_timeframe
+    while i < 4000
+        i += 1
+        if year[i] != year[i-1]
+            years += 1
+
+        returns_array.set(tradingDayOfYear[i], returns_array.get(tradingDayOfYear[i]) + change_pct[i])
+
+        if years > lookbackYears
+            insufficient_data := false
+            break
+
+    for j = 1 to max_trading_days
+        returns_array.set(j, returns_array.get(j) / lookbackYears)
+
+    k = tradingDayOfYear
+    k += 50
+    if k > max_trading_days
+        k := k - max_trading_days + 1
+    avg_return := returns_array.get(k)
+
+green_color = color.rgb(4, 153, 129)
+red_color = color.rgb(247, 124, 128)
+plot(valid_timeframe and not insufficient_data ? avg_return * 100. : na, "Daily Returns", style=plot.style_histogram, color=avg_return >=0 ? green_color : red_color, offset=50)
+ema = ta.ema(avg_return, ema_period) 
+ema_plot = plot(valid_timeframe and not insufficient_data ? ema * 100. : na, "EMA", color=ema >= 0 ? color.new(green_color, 50) : color.new(red_color, 50), style=plot.style_area, offset=50)
+
+var label lb = na
+if not valid_timeframe and barstate.islast and na(lb)
+    lb := label.new(bar_index, 0, "Unsupported timeframe\nPlease choose Daily timeframe!", textcolor = red_color, color=color.new(red_color, 90), style=label.style_label_center)
