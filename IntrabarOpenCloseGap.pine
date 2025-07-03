@@ -1,0 +1,24 @@
+// MIT License
+// © Yuri Lopukhov
+// Just checking one idea: look at gaps between close and open bars on lower timeframe 
+// to try to estimate how much slippage exists there that may be a result of buying or selling pressure.
+// Perhaps it only useful in real time to see if situation of the current bar is changing.
+// Open to ideas and suggestions
+// v. 0.1 - initial version
+//@version=6
+indicator("Intra-bar Close/Open Gap [YuL]", overlay = false)
+
+tf = input.timeframe("1", "Intra-bar timeframe, should be lower than current")
+close_prices = request.security_lower_tf(syminfo.tickerid, tf, close)
+open_prices = request.security_lower_tf(syminfo.tickerid, tf, open)
+
+gaps = array.new_float()
+if close_prices.size() > 0
+    for i = 0 to close_prices.size() - 2
+        gaps.push(open_prices.get(i+1) - close_prices.get(i))
+avg_gap = gaps.avg()
+
+plot_color = avg_gap > 0 ? color.green : color.red
+avg_gap_plot = plot(avg_gap, color=plot_color)
+zero_line_plot = plot(0, color=plot_color, display = display.pane)
+fill(avg_gap_plot, zero_line_plot, color=plot_color)
